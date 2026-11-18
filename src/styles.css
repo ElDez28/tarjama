@@ -467,3 +467,6 @@ img.single {
   margin: 12px 0;
   border: 1px solid var(--line);
 }
+.status.warn {
+  background: #fbf0c9;
+}

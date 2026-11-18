@@ -4,7 +4,7 @@ import { Home, type Opened } from './Home';
 import { Settings } from './Settings';
 import { MARKER } from './markers';
 import { openPdf, type PdfDoc } from './pdf';
-import { backupProject, downloadBlob, hashBytes, loadAi, loadPdf, rememberRecent, saveAi, savePdf, writeProjectFile } from './storage';
+import { backupProject, downloadBlob, fileApiSupported, hashBytes, loadAi, loadPdf, pickSaveFile, rememberRecent, saveAi, savePdf, writeProjectFile } from './storage';
 import { runTranslation, type JobProgress } from './translate';
 import type { AiSettings, Project } from './types';
 import { PROVIDERS } from './ai';
@@ -53,6 +53,8 @@ let noteCounter = Date.now() % 1e6;
 
 function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: AiSettings; onClose: () => void; onSettings: () => void }) {
   const [project, setProject] = useState<Project>(opened.project);
+  const [handle, setHandle] = useState<FileSystemFileHandle | undefined>(opened.handle);
+  const [warning, setWarning] = useState<string | undefined>(opened.warning);
   const [save, setSave] = useState<SaveState>(opened.handle ? 'saved' : 'browser-only');
   const [job, setJob] = useState<JobProgress | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
@@ -69,15 +71,16 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
   const flush = useCallback(async () => {
     const p = latest.current;
     await backupProject(p.id, p);
-    if (!opened.handle) return;
+    if (!handle) return;
     setSave('saving');
     try {
-      await writeProjectFile(opened.handle, p);
+      await writeProjectFile(handle, p);
       setSave('saved');
     } catch {
       setSave('error');
+      setWarning('Snimanje u fajl nije uspjelo. Rad je sačuvan u browseru; klikni „Kopija“ ili pokušaj ponovo sačuvati u fajl.');
     }
-  }, [opened.handle]);
+  }, [handle]);
 
   const update = useCallback(
     (fn: (p: Project) => Project) => {
@@ -93,8 +96,20 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
   );
 
   useEffect(() => {
-    rememberRecent({ id: project.id, title: project.title, fileName: opened.handle?.name ?? '(samo u browseru)', updatedAt: project.updatedAt, handle: opened.handle });
-  }, [project.id, project.title, project.updatedAt, opened.handle]);
+    rememberRecent({ id: project.id, title: project.title, fileName: handle?.name ?? '(samo u browseru)', updatedAt: project.updatedAt, handle });
+  }, [project.id, project.title, project.updatedAt, handle]);
+
+  const saveToFile = async () => {
+    try {
+      const h = await pickSaveFile(latest.current.title);
+      await writeProjectFile(h, latest.current);
+      setHandle(h);
+      setSave('saved');
+      setWarning(undefined);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setWarning('Ni sada nije dozvoljeno snimanje u fajl (' + (e as Error).message + '). Otvori aplikaciju u Google Chromeu ili Microsoft Edgeu.');
+    }
+  };
 
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
@@ -241,6 +256,16 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
           {job.phase === 'reading' && `Čitam stranu ${job.page} od ${job.total}…`}
           {job.phase === 'translating' && `Prevodim od strane ${job.page}…`}
           {job.phase === 'waiting' && job.message}
+        </div>
+      )}
+      {warning && (
+        <div className="status warn">
+          {warning}{' '}
+          {fileApiSupported && (
+            <button className="btn small" onClick={saveToFile}>
+              Pokušaj sačuvati u fajl
+            </button>
+          )}
         </div>
       )}
       {jobError && (

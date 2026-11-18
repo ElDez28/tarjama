@@ -21,7 +21,13 @@ export interface Opened {
   project: Project;
   handle?: FileSystemFileHandle;
   doc?: PdfDoc;
+  warning?: string;
 }
+
+const FILE_WARNING =
+  'Browser nije dozvolio snimanje u fajl na računaru, pa se projekat za sada snima samo u ovaj browser. ' +
+  'Da bi se snimao u fajl, otvori aplikaciju u Google Chromeu ili Microsoft Edgeu (ne u nekom drugom programu) i sačuvaj projekat u običan folder, npr. Dokumenti. ' +
+  'Do tada povremeno klikni „Kopija“.';
 
 interface Pending {
   bytes: ArrayBuffer;
@@ -99,18 +105,25 @@ export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
       book: { size: 'A5', fontSize: 11, author: '', translator: '' },
     };
     let handle: FileSystemFileHandle | undefined;
+    let warning: string | undefined;
     if (fileApiSupported) {
       try {
         handle = await pickSaveFile(project.title);
-        await writeProjectFile(handle, project);
       } catch (e) {
         if ((e as Error).name === 'AbortError') return; // the user closed the save window
-        setError('Fajl nije sačuvan: ' + (e as Error).message);
-        return;
+        handle = undefined;
       }
-    }
+      if (handle) {
+        try {
+          await writeProjectFile(handle, project);
+        } catch {
+          handle = undefined;
+        }
+      }
+      if (!handle) warning = FILE_WARNING;
+    } else warning = FILE_WARNING;
     await savePdf(pending.hash, pending.bytes);
-    onOpen({ project, handle, doc: pending.doc });
+    onOpen({ project, handle, doc: pending.doc, warning });
   };
 
   const openRecent = async (r: RecentEntry) => {
