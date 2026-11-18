@@ -9,6 +9,7 @@ import { runTranslation, type JobProgress } from './translate';
 import type { AiSettings, Project } from './types';
 import { PROVIDERS } from './ai';
 import { ExportDialog } from './ExportDialog';
+import { pagesWord, parts as partsWord } from './plural';
 
 type SaveState = 'saved' | 'saving' | 'error' | 'browser-only';
 
@@ -208,7 +209,7 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
     });
 
   const fromPdfBook = (project.pdf.kind ?? 'pdf') === 'pdf';
-  const unit = fromPdfBook ? 'strana' : 'dijelova';
+  const unit = (fromPdfBook ? pagesWord : partsWord)(project.pdf.pageCount);
   const pct = Math.round((project.translatedPages / project.pdf.pageCount) * 100);
   const done = project.translatedPages >= project.pdf.pageCount;
   const words = project.segments.reduce((n, s) => n + (s.bs ? s.bs.replace(MARKER, '').split(/\s+/).length : 0), 0);

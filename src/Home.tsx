@@ -16,6 +16,7 @@ import {
 } from './storage';
 import { DEFAULT_RULES } from './translate';
 import { readDocx, readTxt } from './importText';
+import { notesWord, pagesWord, parts as partsWord } from './plural';
 import type { Project, ReadMode, SourcePage } from './types';
 
 export interface Opened {
@@ -201,8 +202,8 @@ export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
           <input value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <p className="muted">
-          {pending.name} · {pending.kind === 'pdf' ? `${pending.pageCount} strana` : `${pending.pageCount} dijelova od otprilike jedne stranice`}
-          {pending.kind === 'docx' && ` · ${pending.notes ?? 0} fusnota`}
+          {pending.name} · {pending.kind === 'pdf' ? `${pending.pageCount} ${pagesWord(pending.pageCount)}` : `${pending.pageCount} ${partsWord(pending.pageCount)} od otprilike jedne stranice`}
+          {pending.kind === 'docx' && ` · ${pending.notes ?? 0} ${notesWord(pending.notes ?? 0)}`}
         </p>
         {pending.kind !== 'pdf' ? (
           <>
