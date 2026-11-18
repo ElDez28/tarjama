@@ -338,10 +338,16 @@ async function withRetry<T>(fn: () => Promise<T>, progress: (p: JobProgress) => 
       return await fn();
     } catch (e) {
       const err = e instanceof AiError ? e : new AiError(String((e as Error)?.message ?? e));
-      if (!err.retryable || attempt >= 4 || signal.aborted) throw err;
-      const wait = 5000 * attempt;
-      progress({ phase: 'waiting', page, total, message: err.message + ` Novi pokušaj za ${wait / 1000} s.` });
-      await new Promise((r) => setTimeout(r, wait));
+      // about 10 minutes in all: 10 s, 20 s, 40 s, 80 s, then every 2 minutes
+      if (!err.retryable || attempt >= 8 || signal.aborted) throw err;
+      const wait = Math.min(120_000, Math.max(err.retryAfterMs ?? 0, 10_000 * 2 ** (attempt - 1)));
+      const until = Date.now() + wait;
+      while (Date.now() < until) {
+        if (signal.aborted) throw new AiError('Zaustavljeno.');
+        const left = Math.ceil((until - Date.now()) / 1000);
+        progress({ phase: 'waiting', page, total, message: `${err.message} Novi pokušaj za ${left} s (pokušaj ${attempt + 1} od 8).` });
+        await new Promise((r) => setTimeout(r, Math.min(1000, until - Date.now())));
+      }
     }
   }
 }

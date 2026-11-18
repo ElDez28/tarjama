@@ -62,10 +62,23 @@ export interface JsonRequest {
 
 export class AiError extends Error {
   retryable: boolean;
-  constructor(message: string, retryable = false) {
+  /** How long the service asked us to wait, when it said so. */
+  retryAfterMs?: number;
+  constructor(message: string, retryable = false, retryAfterMs?: number) {
     super(message);
     this.retryable = retryable;
+    this.retryAfterMs = retryAfterMs;
   }
+}
+
+/** "Please retry in 37.5s", "retryDelay": "38s", or a retry-after header. */
+function retryAfter(err: { headers?: unknown }, detail: string): number | undefined {
+  const m = detail.match(/retry in ([\d.]+)\s*s/i) ?? detail.match(/"retryDelay"\s*:\s*"([\d.]+)s"/i);
+  if (m) return Math.ceil(Number(m[1]) * 1000);
+  const h = err.headers as { get?: (k: string) => string | null } | undefined;
+  const v = typeof h?.get === 'function' ? h.get('retry-after') : undefined;
+  if (v && !Number.isNaN(Number(v))) return Number(v) * 1000;
+  return undefined;
 }
 
 function explain(e: unknown): AiError {
@@ -77,8 +90,17 @@ function explain(e: unknown): AiError {
   const detail = String(err?.error?.error?.message ?? err?.error?.message ?? err?.message ?? e).slice(0, 300);
   if (status === 401 || status === 403 || /api key not valid|invalid api key/i.test(detail)) return new AiError('Ključ nije prihvaćen. Provjeri da je ispravno kopiran i da je aktivan. (' + detail + ')');
   if (status === 404) return new AiError('Model nije pronađen. Izaberi drugi model u postavkama. (' + detail + ')');
-  if (status === 429) return new AiError('Servis kaže da je previše zahtjeva ili da nema kredita na računu. (' + detail + ')', true);
-  if (status && status >= 500) return new AiError('Servis trenutno ne radi kako treba. Pokušaću ponovo. (' + detail + ')', true);
+  const raw = String(err?.message ?? '') + ' ' + JSON.stringify(err?.error ?? '');
+  if (status === 429 && /per.?day|PerDay|daily/i.test(raw))
+    return new AiError(
+      'Dnevni besplatni limit za ovaj model je potrošen. Rad je sačuvan: nastavi sutra, ili u postavkama AI izaberi drugi model (npr. neki „Flash-Lite“) i odmah nastavi.',
+    );
+  if (status === 429 && /credit|billing|balance|insufficient_quota/i.test(raw))
+    return new AiError('Na računu kod ovog servisa nema kredita. Dopuni račun ili izaberi drugi servis. (' + detail + ')');
+  if (status === 429) return new AiError('Servis kaže da je previše zahtjeva u kratkom vremenu. Čekam i nastavljam sam.', true, retryAfter(err, raw));
+  if (status === 503 || status === 529 || /overloaded|high demand|UNAVAILABLE/i.test(raw))
+    return new AiError('Servis je trenutno preopterećen (to je kod njih, ne kod tebe). Čekam i nastavljam sam.', true, retryAfter(err, raw));
+  if (status && status >= 500) return new AiError('Servis trenutno ne radi kako treba. Čekam i nastavljam sam.', true, retryAfter(err, raw));
   if (/fetch|network|cors|connection/i.test(detail))
     return new AiError(
       'Nema veze sa servisom. Ili nema interneta, ili ovaj servis ne dozvoljava pozive iz browsera (tada probaj preko OpenRoutera). (' + detail + ')',
