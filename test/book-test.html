@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body><script type="module">
+import { bookHtml } from '/src/export.ts';
+const segs = []; const fn = {};
+const lorem = 'Ebu Hurejre, radijallahu anhu, prenosi da je Allahov Poslanik ﷺ rekao: „Allah ne prima namaz nikome od vas kad izgubi abdest, dok ne uzme abdest.“ Ovaj hadis bilježe Buharija i Muslim, a učenjaci iz njega izvode više propisa o čistoći.';
+let k = 0;
+for (let c = 1; c <= 3; c++) {
+  segs.push({ id: 'h' + c, ar: '', bs: 'Poglavlje o čistoći ' + c, page: c, paraStart: true, heading: true });
+  for (let i = 0; i < 14; i++) {
+    const id = 'f' + k++;
+    fn[id] = { id, text: 'Bilježi Muslim, br. ' + (200 + k) + '. Napomena prevodioca uz ovaj hadis.' };
+    segs.push({ id: 's' + c + '_' + i, ar: '', bs: lorem + (i % 3 == 0 ? `[^${id}]` : ''), page: c, paraStart: i % 2 == 0, heading: false });
+  }
+}
+const p = { title: 'Umdetul-ahkam', segments: segs, footnotes: fn, book: { size: 'A5', fontSize: 11, author: 'Abdulgani el-Makdisi', translator: 'Probni prevodilac' } };
+const html = bookHtml(p).replace('setTimeout(() => window.print(), 400)', '0').replace('/test/vendor/', '/vendor/');
+document.open(); document.write(html); document.close();
+</script></body></html>

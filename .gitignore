@@ -2,3 +2,5 @@ node_modules
 dist
 *.local
 test/umda.pdf
+test/book-debug.js
+test/*.png

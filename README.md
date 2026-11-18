@@ -1,54 +1,28 @@
-# React + TypeScript + Vite
+# Tarjama
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Prevod arapskih knjiga na bosanski, rečenicu po rečenicu, do gotove knjige.
 
-Currently, two official plugins are available:
+## Kako se koristi
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. Otvori aplikaciju u **Chromeu ili Edgeu** (Firefox ne može snimati projekat u fajl).
+2. Klikni **AI** gore desno, izaberi servis (Claude, ChatGPT, Gemini ili neki drugi), zalijepi svoj API ključ i klikni **Provjeri ključ**.
+3. **Nova knjiga iz PDF-a**: izaberi arapski PDF. Aplikacija pokaže jednu stranicu i tekst koji je iz nje pročitala:
+   - ako je tekst isti kao na slici, koristi se taj tekst (brže i jeftinije);
+   - ako nije, ili je knjiga skenirana, AI čita svaku stranicu sa slike.
+4. Izaberi gdje da se projekat sačuva (npr. `Dokumenti\Prevodi\Knjiga.tarjama`). Od tada se svaka promjena sama snima u taj fajl.
+5. **Počni prevod**. Prevodi se po dvije strane. Možeš zaustaviti i nastaviti kad hoćeš.
+6. Ispravke: klikni na bosansku rečenicu, ispravi, pa Enter. Fusnota: označi riječ mišem i klikni **Dodaj fusnotu**.
+7. **Izvoz knjige**: PDF (naslovna strana, sadržaj, brojevi stranica, fusnote na dnu stranice), Word (.docx) ili običan tekst.
 
-## Expanding the ESLint configuration
+Ključ i knjige ostaju samo na tvom računaru. Prevod ide direktno od tebe do AI servisa koji izabereš i plaća se na tvom računu kod tog servisa.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+U **Pravila prevoda** upisuješ kako da AI prevodi određene izraze (npr. عز وجل → „Uzvišeni“).
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## Za programera
+
+```
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+`npm run build` pravi statičku stranicu u `dist/`, spremnu za GitHub Pages. Paged.js (MIT) je kopiran u `public/vendor/`.

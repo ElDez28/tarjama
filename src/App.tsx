@@ -8,6 +8,7 @@ import { backupProject, downloadBlob, hashBytes, loadAi, loadPdf, rememberRecent
 import { runTranslation, type JobProgress } from './translate';
 import type { AiSettings, Project } from './types';
 import { PROVIDERS } from './ai';
+import { ExportDialog } from './ExportDialog';
 
 type SaveState = 'saved' | 'saving' | 'error' | 'browser-only';
 
@@ -56,6 +57,7 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
   const [job, setJob] = useState<JobProgress | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const docRef = useRef<PdfDoc | undefined>(opened.doc);
   const abortRef = useRef<AbortController | null>(null);
   const latest = useRef(project);
@@ -217,6 +219,9 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
             </button>
           )
         )}
+        <button className="btn" onClick={() => setShowExport(true)} disabled={!project.segments.length}>
+          Izvoz knjige
+        </button>
         <button className="btn" onClick={() => setShowRules(true)}>
           Pravila prevoda
         </button>
@@ -261,6 +266,7 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
         <Editor segments={project.segments} footnotes={project.footnotes} onChangeSegment={changeSegment} onAddNote={addNote} onChangeNote={changeNote} />
       )}
 
+      {showExport && <ExportDialog project={project} onBook={(book) => update((p) => ({ ...p, book }))} onClose={() => setShowExport(false)} />}
       {showRules && <RulesDialog value={project.rules} onClose={() => setShowRules(false)} onSave={(rules) => (update((p) => ({ ...p, rules })), setShowRules(false))} />}
     </div>
   );
