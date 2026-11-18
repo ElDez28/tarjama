@@ -2,11 +2,20 @@ import { useState } from 'react';
 import { COMPATIBLE_PRESETS, PROVIDERS, listModels } from './ai';
 import type { AiSettings, ProviderId } from './types';
 
+const OTHER = '__other__';
+
+const MODEL_NAMES: Record<string, string> = {
+  'claude-opus-5-5': 'Claude Opus 5.5 (najbolji prevod, najskuplji)',
+  'claude-sonnet-5-5': 'Claude Sonnet 5.5 (dobar i jeftiniji)',
+  'claude-haiku-5-5': 'Claude Haiku 5.5 (najjeftiniji, za probu)',
+};
+
 export function Settings({ value, onSave, onClose }: { value: AiSettings; onSave: (s: AiSettings) => void; onClose: () => void }) {
   const [s, setS] = useState<AiSettings>(value);
   const [models, setModels] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [typing, setTyping] = useState(false);
   const info = PROVIDERS.find((p) => p.id === s.provider)!;
   const choices = [...new Set([...info.suggested, ...models])];
 
@@ -15,6 +24,7 @@ export function Settings({ value, onSave, onClose }: { value: AiSettings; onSave
     setS({ ...s, provider: id, model: p.suggested[0] ?? '', baseUrl: id === 'compatible' ? s.baseUrl || COMPATIBLE_PRESETS[0].url : s.baseUrl });
     setModels([]);
     setMsg(null);
+    setTyping(false);
   };
 
   const check = async () => {
@@ -82,16 +92,32 @@ export function Settings({ value, onSave, onClose }: { value: AiSettings; onSave
           <label className="field">
             <span>Model</span>
             <div className="row">
-              <input value={s.model} onChange={(e) => setS({ ...s, model: e.target.value.trim() })} list="models" placeholder="naziv modela" />
+              <select
+                value={typing || !choices.includes(s.model) ? OTHER : s.model}
+                onChange={(e) => {
+                  if (e.target.value === OTHER) {
+                    setTyping(true);
+                  } else {
+                    setTyping(false);
+                    setS({ ...s, model: e.target.value });
+                  }
+                }}
+              >
+                {choices.map((m) => (
+                  <option key={m} value={m}>
+                    {MODEL_NAMES[m] ?? m}
+                  </option>
+                ))}
+                <option value={OTHER}>Drugi model (upiši naziv)…</option>
+              </select>
               <button type="button" className="btn" onClick={check} disabled={busy || (!s.apiKey && s.provider !== 'compatible')}>
                 {busy ? 'Provjeravam…' : 'Provjeri ključ'}
               </button>
             </div>
-            <datalist id="models">
-              {choices.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
+            {(typing || !choices.includes(s.model)) && (
+              <input value={s.model} onChange={(e) => setS({ ...s, model: e.target.value.trim() })} placeholder="tačan naziv modela" autoFocus={typing} />
+            )}
+            {models.length === 0 && <small className="muted">Klikni „Provjeri ključ“ da se učitaju svi modeli koje tvoj ključ može koristiti.</small>}
             <small className="muted">Za čitanje skeniranih stranica model mora razumjeti slike. Jači model prevodi bolje, ali košta više.</small>
           </label>
         )}
