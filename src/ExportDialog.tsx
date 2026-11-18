@@ -51,6 +51,14 @@ export function ExportDialog({ project, onBook, onClose }: { project: Project; o
           </label>
         </div>
         <label className="field">
+          <span>Margine</span>
+          <select value={b.margins ?? 'narrow'} onChange={(e) => setB({ ...b, margins: e.target.value as BookSettings['margins'] })}>
+            <option value="narrow">Uske (više teksta na stranici)</option>
+            <option value="normal">Srednje</option>
+            <option value="wide">Široke</option>
+          </select>
+        </label>
+        <label className="field">
           <span>Autor knjige</span>
           <input value={b.author} onChange={(e) => setB({ ...b, author: e.target.value })} placeholder="npr. Abdulgani el-Makdisi" />
         </label>
@@ -59,7 +67,7 @@ export function ExportDialog({ project, onBook, onClose }: { project: Project; o
           <input value={b.translator} onChange={(e) => setB({ ...b, translator: e.target.value })} />
         </label>
         <p className="muted">
-          Knjiga dobija naslovnu stranu, sadržaj (ako ima naslova poglavlja), brojeve stranica i fusnote na dnu stranice. Brojevi stranica su novi, ne kao u arapskoj knjizi.
+          U prozoru za štampu izaberi <strong>Odredište: Sačuvaj kao PDF</strong> (ne „Microsoft Print to PDF“), a margine ostavi na „Zadano“. Knjiga dobija naslovnu stranu, sadržaj (ako ima naslova poglavlja), brojeve stranica i fusnote na dnu stranice. Brojevi stranica su novi, ne kao u arapskoj knjizi.
         </p>
         {msg && <p className="error">{msg}</p>}
         <div className="actions">

@@ -59,6 +59,15 @@ export function bookBlocks(p: Project): Block[] {
 
 const PAGE_MM: Record<Project['book']['size'], [number, number]> = { A5: [148, 210], B5: [176, 250], A4: [210, 297] };
 
+/** Margins in mm for an A5 page (top, sides, bottom), scaled for bigger pages. */
+const MARGINS = { narrow: [12, 12, 14], normal: [15, 15, 18], wide: [19, 18, 22] } as const;
+
+export function marginsMm(book: Project['book']): { top: number; side: number; bottom: number } {
+  const [t, sd, b] = MARGINS[book.margins ?? 'narrow'];
+  const k = PAGE_MM[book.size][0] / 148;
+  return { top: Math.round(t * k), side: Math.round(sd * k), bottom: Math.round(b * k) };
+}
+
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /* ---------- PDF: a paged book in a new window, then the browser's "Save as PDF" ---------- */
@@ -82,12 +91,13 @@ export function bookHtml(p: Project): string {
     `@font-face{font-family:'Book Serif';src:url(${new URL(url, location.href).href}) format('woff2');font-weight:${weight};font-style:${style};${range}}`;
   const latinExt = 'unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;';
   const size = p.book.fontSize;
+  const m = marginsMm(p.book);
 
   return `<!doctype html><html lang="bs"><head><meta charset="utf-8"><title>${esc(p.title)}</title>
 <style>
 ${font(serif400, 400)}${font(serif400x, 400, 'normal', latinExt)}${font(serif400i, 400, 'italic')}${font(serif400ix, 400, 'italic', latinExt)}${font(serif600, 600)}${font(serif600x, 600, 'normal', latinExt)}
 @font-face{font-family:'Book Arabic';src:url(${new URL(amiri400, location.href).href}) format('woff2');}
-@page { size: ${w}mm ${h}mm; margin: ${Math.round(h * 0.085)}mm ${Math.round(w * 0.12)}mm ${Math.round(h * 0.1)}mm;
+@page { size: ${w}mm ${h}mm; margin: ${m.top}mm ${m.side}mm ${m.bottom}mm;
   @bottom-center { content: counter(page); font: ${size - 1.5}pt 'Book Serif'; }
   @footnote { border-top: 0.5pt solid #000; padding-top: 2mm; margin-top: 3mm; }
 }
@@ -167,6 +177,7 @@ export function exportPdf(p: Project): boolean {
 
 export async function exportDocx(p: Project, download = true): Promise<Blob> {
   const [wmm, hmm] = PAGE_MM[p.book.size];
+  const mg = marginsMm(p.book);
   const twip = (mm: number) => Math.round((mm / 25.4) * 1440);
   const blocks = bookBlocks(p);
   const notes: Record<number, { children: Paragraph[] }> = {};
@@ -219,7 +230,7 @@ export async function exportDocx(p: Project, download = true): Promise<Blob> {
         properties: {
           page: {
             size: { width: twip(wmm), height: twip(hmm) },
-            margin: { top: twip(hmm * 0.085), bottom: twip(hmm * 0.1), left: twip(wmm * 0.12), right: twip(wmm * 0.12) },
+            margin: { top: twip(mg.top), bottom: twip(mg.bottom), left: twip(mg.side), right: twip(mg.side), footer: twip(mg.bottom * 0.45) },
           },
           titlePage: true,
         },

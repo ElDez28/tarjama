@@ -47,6 +47,8 @@ export type ReadMode = 'text' | 'vision';
 export interface BookSettings {
   size: 'A5' | 'B5' | 'A4';
   fontSize: number;
+  /** Missing in projects made before 2026-11-18 afternoon: treated as 'narrow'. */
+  margins?: 'narrow' | 'normal' | 'wide';
   author: string;
   translator: string;
 }
