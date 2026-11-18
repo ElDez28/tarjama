@@ -151,8 +151,9 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
       onSettings();
       return;
     }
-    const doc = await ensureDoc();
-    if (!doc) return;
+    const fromPdf = (project.pdf.kind ?? 'pdf') === 'pdf';
+    const doc = fromPdf ? await ensureDoc() : null;
+    if (fromPdf && !doc) return;
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setJob({ phase: 'reading', page: project.translatedPages + 1, total: project.pdf.pageCount });
@@ -206,6 +207,8 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
       return { ...p, footnotes: fn };
     });
 
+  const fromPdfBook = (project.pdf.kind ?? 'pdf') === 'pdf';
+  const unit = fromPdfBook ? 'strana' : 'dijelova';
   const pct = Math.round((project.translatedPages / project.pdf.pageCount) * 100);
   const done = project.translatedPages >= project.pdf.pageCount;
   const words = project.segments.reduce((n, s) => n + (s.bs ? s.bs.replace(MARKER, '').split(/\s+/).length : 0), 0);
@@ -220,7 +223,7 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
         <div className="progress" title={`${project.translatedPages} od ${project.pdf.pageCount} strana`}>
           <div style={{ width: pct + '%' }} />
           <span>
-            {project.translatedPages}/{project.pdf.pageCount} strana · {words.toLocaleString('bs-BA')} riječi
+            {project.translatedPages}/{project.pdf.pageCount} {unit} · {words.toLocaleString('bs-BA')} riječi
           </span>
         </div>
         {job ? (
@@ -254,7 +257,7 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
       {job && (
         <div className="status">
           {job.phase === 'reading' && `Čitam stranu ${job.page} od ${job.total}…`}
-          {job.phase === 'translating' && `Prevodim od strane ${job.page}…`}
+          {job.phase === 'translating' && `Prevodim od ${fromPdfBook ? 'strane' : 'dijela'} ${job.page}…`}
           {job.phase === 'waiting' && job.message}
         </div>
       )}
@@ -282,13 +285,13 @@ function Workspace({ opened, ai, onClose, onSettings }: { opened: Opened; ai: Ai
       {project.segments.length === 0 && !job ? (
         <div className="empty-state">
           <p>
-            Knjiga ima {project.pdf.pageCount} strana. Klikni <strong>Počni prevod</strong>. Prevod ide po dvije strane, i sve se odmah snima, pa možeš zaustaviti i nastaviti
+            Knjiga ima {project.pdf.pageCount} {unit}. Klikni <strong>Počni prevod</strong>. Prevod ide po {fromPdfBook ? 'dvije strane' : 'dva dijela'}, i sve se odmah snima, pa možeš zaustaviti i nastaviti
             kad hoćeš.
           </p>
           <p className="muted">Prije toga možeš pogledati „Pravila prevoda“: tu upisuješ kako da AI prevodi određene izraze.</p>
         </div>
       ) : (
-        <Editor segments={project.segments} footnotes={project.footnotes} onChangeSegment={changeSegment} onAddNote={addNote} onChangeNote={changeNote} />
+        <Editor partLabel={fromPdfBook ? 'Arapska strana' : 'Dio'} segments={project.segments} footnotes={project.footnotes} onChangeSegment={changeSegment} onAddNote={addNote} onChangeNote={changeNote} />
       )}
 
       {showExport && <ExportDialog project={project} onBook={(book) => update((p) => ({ ...p, book }))} onClose={() => setShowExport(false)} />}

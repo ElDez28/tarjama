@@ -34,6 +34,8 @@ interface Unit {
   ar: string;
   page: number;
   paraStart: boolean;
+  /** The source marks this paragraph as a heading (Word styles). */
+  heading?: boolean;
 }
 
 interface NoteIn {
@@ -47,8 +49,11 @@ function unitsOf(pages: SourcePage[]): { units: Unit[]; notes: NoteIn[] } {
   const units: Unit[] = [];
   const notes: NoteIn[] = [];
   for (const p of pages) {
-    p.paras.forEach((para) => {
-      splitSentences(para).forEach((ar, i) => units.push({ ar, page: p.n, paraStart: i === 0 }));
+    p.paras.forEach((para, pi) => {
+      const heading = p.headings?.includes(pi);
+      // a heading is one row, even when it contains a full stop
+      const sentences = heading ? [para] : splitSentences(para);
+      sentences.forEach((ar, i) => units.push({ ar, page: p.n, paraStart: i === 0, heading }));
     });
     p.notes.forEach((ar, i) => {
       const m = toWestern(ar).match(/^\s*[([]?(\d+)[)\]]?/);
@@ -202,7 +207,7 @@ export async function translatePages(
     .join('\n');
   const user =
     (context ? `Prethodni prevod (samo radi povezanosti, ne prevodi ponovo):\n${context}\n\n` : '') +
-    `Arapske rečenice:\n${units.map((u, i) => `[${i + 1}] ${u.ar}`).join('\n')}` +
+    `Arapske rečenice (oznaka "(naslov)" znači da je to naslov u knjizi):\n${units.map((u, i) => `[${i + 1}]${u.heading ? ' (naslov)' : ''} ${u.ar}`).join('\n')}` +
     (notes.length ? `\n\nFusnote sa ovih stranica:\n${notes.map((n) => `{${n.key}} ${n.ar}`).join('\n')}` : '');
 
   type Raw = { groups?: unknown; notes?: unknown } | null;
@@ -261,7 +266,7 @@ export async function translatePages(
       }
       return '';
     });
-    segments.push({ id: newId('s'), ar, bs: bs.trim(), page: first.page, paraStart: first.paraStart, heading: g.heading });
+    segments.push({ id: newId('s'), ar, bs: bs.trim(), page: first.page, paraStart: first.paraStart, heading: g.heading || !!first.heading });
   }
   // a source footnote the translation did not mark is attached to the last sentence of its page
   for (const n of notes) {
@@ -293,7 +298,8 @@ const PAGES_PER_CHUNK = 2;
  */
 export async function runTranslation(
   start: Project,
-  doc: PdfDoc,
+  /** Not needed for Word and text books: their parts are all read at import. */
+  doc: PdfDoc | null,
   ai: AiSettings,
   commit: (p: Project) => void,
   progress: (p: JobProgress) => void,
@@ -309,6 +315,7 @@ export async function runTranslation(
     const pages = [...p.pages];
     for (let n = from; n <= to; n++) {
       if (pages[n - 1]) continue;
+      if (!doc) throw new AiError('Nedostaje PDF ove knjige.');
       progress({ phase: 'reading', page: n, total });
       pages[n - 1] = await withRetry(() => readPage(doc, n, p.readMode, ai, signal), progress, n, total, signal);
     }

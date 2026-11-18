@@ -3,6 +3,8 @@ import { fromEditable, numberNotes, pieces, toEditable } from './markers';
 import type { Footnote, Segment } from './types';
 
 interface Props {
+  /** "Arapska strana" for a PDF, "Dio" for Word and text books. */
+  partLabel: string;
   segments: Segment[];
   footnotes: Record<string, Footnote>;
   onChangeSegment: (id: string, bs: string, removedNotes: string[]) => void;
@@ -18,7 +20,7 @@ interface NoteMenu {
   writing: boolean;
 }
 
-export function Editor({ segments, footnotes, onChangeSegment, onAddNote, onChangeNote }: Props) {
+export function Editor({ partLabel, segments, footnotes, onChangeSegment, onAddNote, onChangeNote }: Props) {
   const [hover, setHover] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [menu, setMenu] = useState<NoteMenu | null>(null);
@@ -68,6 +70,7 @@ export function Editor({ segments, footnotes, onChangeSegment, onAddNote, onChan
           key={s.id}
           seg={s}
           newPage={i === 0 || segments[i - 1].page !== s.page}
+          partLabel={partLabel}
           active={hover === s.id || editing === s.id}
           editing={editing === s.id}
           numbers={numbers}
@@ -137,6 +140,7 @@ export function Editor({ segments, footnotes, onChangeSegment, onAddNote, onChan
 
 interface RowProps {
   seg: Segment;
+  partLabel: string;
   newPage: boolean;
   active: boolean;
   editing: boolean;
@@ -148,13 +152,15 @@ interface RowProps {
   onOpenNote: (id: string, x: number, y: number) => void;
 }
 
-const Row = memo(function Row({ seg, newPage, active, editing, numbers, footnotes, onHover, onEdit, onDone, onOpenNote }: RowProps) {
+const Row = memo(function Row({ seg, partLabel, newPage, active, editing, numbers, footnotes, onHover, onEdit, onDone, onOpenNote }: RowProps) {
   const notesHere = pieces(seg.bs).filter((p) => p.kind === 'note');
   return (
     <>
       {newPage && (
         <div className="pagemark">
-          <span>Arapska strana {seg.page}</span>
+          <span>
+            {partLabel} {seg.page}
+          </span>
         </div>
       )}
       <div className={'seg' + (active ? ' active' : '') + (seg.paraStart ? ' para' : '') + (seg.heading ? ' heading' : '')} onMouseEnter={() => onHover(seg.id)}>

@@ -6,9 +6,11 @@ Prevod arapskih knjiga na bosanski, rečenicu po rečenicu, do gotove knjige.
 
 1. Otvori aplikaciju u **Chromeu ili Edgeu** (Firefox ne može snimati projekat u fajl).
 2. Klikni **AI** gore desno, izaberi servis (Claude, ChatGPT, Gemini ili neki drugi), zalijepi svoj API ključ i klikni **Provjeri ključ**.
-3. **Nova knjiga iz PDF-a**: izaberi arapski PDF. Aplikacija pokaže jednu stranicu i tekst koji je iz nje pročitala:
-   - ako je tekst isti kao na slici, koristi se taj tekst (brže i jeftinije);
-   - ako nije, ili je knjiga skenirana, AI čita svaku stranicu sa slike.
+3. **Nova knjiga**: izaberi arapsku knjigu kao **Word (.docx)**, običan tekst (.txt) ili PDF.
+   - Word je najbolji: tekst se čita direktno, a fusnote i naslovi poglavlja se prenose tačno. Stari format .doc prvo sačuvaj kao .docx.
+   - Kod PDF-a aplikacija pokaže jednu stranicu i tekst koji je iz nje pročitala:
+     - ako je tekst isti kao na slici, koristi se taj tekst (brže i jeftinije);
+     - ako nije, ili je knjiga skenirana, AI čita svaku stranicu sa slike.
 4. Izaberi gdje da se projekat sačuva (npr. `Dokumenti\Prevodi\Knjiga.tarjama`). Od tada se svaka promjena sama snima u taj fajl.
 5. **Počni prevod**. Prevodi se po dvije strane. Možeš zaustaviti i nastaviti kad hoćeš.
 6. Ispravke: klikni na bosansku rečenicu, ispravi, pa Enter. Fusnota: označi riječ mišem i klikni **Dodaj fusnotu**.

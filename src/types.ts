@@ -16,6 +16,8 @@ export interface SourcePage {
   paras: string[];
   /** The page's own footnotes, Arabic, each usually starting with its number. */
   notes: string[];
+  /** Indexes into paras that are headings (known from Word styles). */
+  headings?: number[];
   source: 'text' | 'vision';
 }
 
@@ -60,7 +62,8 @@ export interface Project {
   title: string;
   createdAt: string;
   updatedAt: string;
-  pdf: { name: string; size: number; hash: string; pageCount: number };
+  /** The source book. `kind` is missing in projects made from a PDF before Word import existed. */
+  pdf: { name: string; size: number; hash: string; pageCount: number; kind?: 'pdf' | 'docx' | 'txt' };
   readMode: ReadMode;
   /** Pages read so far (index = n - 1, sparse until read). */
   pages: (SourcePage | null)[];

@@ -15,7 +15,8 @@ import {
   type RecentEntry,
 } from './storage';
 import { DEFAULT_RULES } from './translate';
-import type { Project, ReadMode } from './types';
+import { readDocx, readTxt } from './importText';
+import type { Project, ReadMode, SourcePage } from './types';
 
 export interface Opened {
   project: Project;
@@ -30,14 +31,19 @@ const FILE_WARNING =
   'Do tada povremeno klikni „Kopija“.';
 
 interface Pending {
+  kind: 'pdf' | 'docx' | 'txt';
   bytes: ArrayBuffer;
-  doc: PdfDoc;
+  doc?: PdfDoc;
+  /** Word and text books: all parts, already read. */
+  parts?: SourcePage[];
+  pageCount: number;
   name: string;
   hash: string;
   preview: string;
   sampleText: string;
   samplePage: number;
   scanned: boolean;
+  notes?: number;
 }
 
 export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
@@ -50,6 +56,34 @@ export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
   useEffect(() => {
     listRecent().then(setRecent);
   }, []);
+
+  const chooseFile = async (file: File) => {
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (ext === 'docx' || ext === 'txt') return chooseText(file, ext);
+    if (ext === 'doc') {
+      setError('Stari Word format (.doc) se ne može čitati. Otvori fajl u Wordu i sačuvaj ga kao .docx (Datoteka → Spremi kao → Word dokument).');
+      return;
+    }
+    return choosePdf(file);
+  };
+
+  const chooseText = async (file: File, kind: 'docx' | 'txt') => {
+    setError(null);
+    setBusy('Čitam fajl…');
+    try {
+      const bytes = await file.arrayBuffer();
+      const parts = kind === 'docx' ? await readDocx(bytes) : readTxt(new TextDecoder('utf-8').decode(bytes));
+      const hash = await hashBytes(bytes);
+      const sample = parts.slice(0, 2).flatMap((p) => p.paras).join('\n\n').slice(0, 1800);
+      const notes = parts.reduce((n, p) => n + p.notes.length, 0);
+      setPending({ kind, bytes, parts, pageCount: parts.length, name: file.name, hash, preview: '', sampleText: sample, samplePage: 1, scanned: false, notes });
+      setTitle(file.name.replace(/\.(docx|txt)$/i, ''));
+    } catch (e) {
+      setError('Ovaj fajl se ne može pročitati: ' + (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const choosePdf = async (file: File) => {
     setError(null);
@@ -68,8 +102,10 @@ export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
       if (best.chars < 40) best.n = Math.min(doc.numPages, 9); // show a text page, not the cover
       const preview = await renderPreviewUrl(doc, best.n);
       setPending({
+        kind: 'pdf',
         bytes,
         doc,
+        pageCount: doc.numPages,
         name: file.name,
         hash,
         preview,
@@ -95,9 +131,9 @@ export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
       title: title.trim() || pending.name,
       createdAt: now,
       updatedAt: now,
-      pdf: { name: pending.name, size: pending.bytes.byteLength, hash: pending.hash, pageCount: pending.doc.numPages },
+      pdf: { name: pending.name, size: pending.bytes.byteLength, hash: pending.hash, pageCount: pending.pageCount, kind: pending.kind },
       readMode,
-      pages: new Array(pending.doc.numPages).fill(null),
+      pages: pending.parts ?? new Array(pending.pageCount).fill(null),
       translatedPages: 0,
       segments: [],
       footnotes: {},
@@ -122,7 +158,7 @@ export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
       }
       if (!handle) warning = FILE_WARNING;
     } else warning = FILE_WARNING;
-    await savePdf(pending.hash, pending.bytes);
+    if (pending.kind === 'pdf') await savePdf(pending.hash, pending.bytes);
     onOpen({ project, handle, doc: pending.doc, warning });
   };
 
@@ -165,9 +201,25 @@ export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
           <input value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <p className="muted">
-          {pending.name} · {pending.doc.numPages} strana
+          {pending.name} · {pending.kind === 'pdf' ? `${pending.pageCount} strana` : `${pending.pageCount} dijelova od otprilike jedne stranice`}
+          {pending.kind === 'docx' && ` · ${pending.notes ?? 0} fusnota`}
         </p>
-        {pending.scanned ? (
+        {pending.kind !== 'pdf' ? (
+          <>
+            <p className="note">Tekst je pročitan direktno iz fajla, pa AI ne mora čitati stranice. Ovo je početak knjige:</p>
+            <div className="ar sample" dir="rtl" lang="ar">
+              {pending.sampleText || '—'}
+            </div>
+            <div className="actions">
+              <button className="btn" onClick={() => setPending(null)}>
+                Nazad
+              </button>
+              <button className="btn primary" onClick={() => create('text')}>
+                Napravi projekat
+              </button>
+            </div>
+          </>
+        ) : pending.scanned ? (
           <>
             <p className="note">
               Iz ovog PDF-a se tekst ne može izvući (knjiga je skenirana ili su fontovi bez slova u sebi), pa će AI čitati svaku stranicu sa slike. To traje malo duže i košta
@@ -223,8 +275,18 @@ export function Home({ onOpen }: { onOpen: (o: Opened) => void }) {
 
       <div className="start">
         <label className={'btn primary big' + (busy ? ' disabled' : '')}>
-          {busy ?? 'Nova knjiga iz PDF-a'}
-          <input type="file" accept="application/pdf" hidden disabled={!!busy} onChange={(e) => e.target.files?.[0] && choosePdf(e.target.files[0])} />
+          {busy ?? 'Nova knjiga (PDF, Word ili tekst)'}
+          <input
+            type="file"
+            accept=".pdf,.docx,.doc,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+            hidden
+            disabled={!!busy}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (f) chooseFile(f);
+            }}
+          />
         </label>
         {fileApiSupported && (
           <button className="btn big" onClick={openFile}>
